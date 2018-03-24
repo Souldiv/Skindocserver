@@ -35,6 +35,7 @@ def protected(f):
             return f(*args, **kwargs)
         else:
             raise MyAppException(reason="Invalid Token", status_code=401)
+
     return wrapper
 
 
@@ -50,11 +51,11 @@ def Authenticated(f):
             return f(*args, **kwargs)
         else:
             raise MyAppException(reason='User is not logged in.', status_code=301)
+
     return wrapper
 
 
 class BaseHandler(tornado.web.RequestHandler):
-
     def db(self):
         clientz = self.settings['db_client']
         db = clientz.tornado
@@ -68,15 +69,15 @@ class BaseHandler(tornado.web.RequestHandler):
             for line in traceback.format_exception(*kwargs["exc_info"]):
                 lines.append(line)
             self.write(json.dumps({
-                        'status_code': status_code,
-                        'message': self._reason,
-                        'traceback': lines,
-                }))
+                'status_code': status_code,
+                'message': self._reason,
+                'traceback': lines,
+            }))
         else:
             self.write(json.dumps({
-                    'status_code': status_code,
-                    'message': self._reason,
-                }))
+                'status_code': status_code,
+                'message': self._reason,
+            }))
 
 
 class AuthHandler(BaseHandler):
@@ -167,15 +168,15 @@ class my404handler(BaseHandler):
     def get(self):
         self.set_header('Content-Type', 'application/json')
         self.write(json.dumps({
-                'status_code': 404,
-                'message': 'illegal call.'
+            'status_code': 404,
+            'message': 'illegal call.'
         }))
 
 
 class OauthLogin(BaseHandler):
     @coroutine
     def post(self):
-        self.set_header('Content-Type','application/json')
+        self.set_header('Content-Type', 'application/json')
         token = tornado.escape.json_decode(self.request.body)
         try:
             idinfo = auth_client.verify_id_token(token['token'], self.settings['client_id'])
@@ -268,7 +269,7 @@ class ResolveAppointment(BaseHandler):
         removes appointment for doctor
         makes the status of the appointment done for patient
         """
-        self.set_header('Content-type','application/json')
+        self.set_header('Content-type', 'application/json')
         token = tornado.escape.json_decode(self.request.body)
         db = self.db()
         user = token['user']
@@ -290,7 +291,8 @@ class ResolveAppointment(BaseHandler):
         ap_details = pat['ap_details']
         ap_inactive2 = pat['ap_inactive']
 
-        db.patient.update({'_id': pat['_id']}, {'$set': {'ap_details': ap_details, 'ap_inactive': ap_inactive2}}, upsert=False)
+        db.patient.update({'_id': pat['_id']}, {'$set': {'ap_details': ap_details, 'ap_inactive': ap_inactive2}},
+                          upsert=False)
         db.doctor.update({'user': doc['user']}, {'$set': {'plist': plist, 'ap_inactive': ap_inactive1}}, upsert=False)
         self.write(json.dumps({
             'status_code': 200,
@@ -303,7 +305,7 @@ class MLHandler(tornado.web.RequestHandler):
         self.set_header("Access-Control-Allow-Origin", "*")
         self.set_header("Access-Control-Allow-Headers", "x-requested-with")
         self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-        self.set_header('Content-type','application/json')
+        self.set_header('Content-type', 'application/json')
 
     @coroutine
     def post(self):
@@ -312,7 +314,7 @@ class MLHandler(tornado.web.RequestHandler):
         img.save("current.jpg")
         f = open("current.jpg", "rb")
         images = [{'content': base64.b64encode(f.read()).decode('UTF-8')}]
-        x = requests.post("https://skindoc-10ef5.appspot.com/melanoma/predict", json=images)
+        x = requests.post("https://test-a9609.appspot.com/melanoma/predict", json=images)
         f.close()
         self.write(json.dumps(x.json()[0]))
 
@@ -324,8 +326,8 @@ class AdminFeature(tornado.web.RequestHandler):
 
 if __name__ == "__main__":
     options.parse_command_line()
-    client = motor_tornado.MotorClient("mongodb://"+os.environ['tornado_user']+":"+ os.environ['tornado_pass']
-                                       +"@ds117605.mlab.com:17605/tornado")
+    client = motor_tornado.MotorClient("mongodb://" + os.environ['tornado_user'] + ":" + os.environ['tornado_pass']
+                                       + "@ds117605.mlab.com:17605/tornado")
     app = tornado.web.Application(
         handlers=[
             (r"/", AuthHandler),
@@ -336,17 +338,17 @@ if __name__ == "__main__":
             (r"/appoint", AppointmentHandler),
             (r"/admin", AdminFeature),
             (r"/new", NewTokenGenerator),
-            (r"/oauth",OauthLogin),
+            (r"/oauth", OauthLogin),
             (r"/resolve", ResolveAppointment),
             (r"/mlpredict", MLHandler)
         ],
-        default_handler_class = my404handler,
-        debug = True,
-        cookie_secret = os.environ['cookie_secret'],
-        login_url = "/login",
-        db_client = client,
-        ap_details = dict(),
-        client_id = os.environ['sk_client'],
+        default_handler_class=my404handler,
+        debug=True,
+        cookie_secret=os.environ['cookie_secret'],
+        login_url="/login",
+        db_client=client,
+        ap_details=dict(),
+        client_id=os.environ['sk_client'],
         template_path=os.path.join(os.path.dirname(__file__), "template"),
         static_path=os.path.join(os.path.dirname(__file__), "static"),
     )
